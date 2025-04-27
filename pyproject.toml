@@ -1,0 +1,24 @@
+[project]
+name = "wangai"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.11"
+dependencies = [
+    "pandas",
+    "numpy",
+    "scikit-learn",
+    "xgboost",
+    "lightgbm",
+    "transformers",
+    "torch",
+    "yfinance",
+    "ta",
+    "pytrends",
+    "newsapi-python",
+    "beautifulsoup4",
+    "requests",
+    "tqdm",
+    "pydantic-settings>=2.9.1",
+    "notebook>=7.4.1",
+    "matplotlib>=3.10.1",
+]
