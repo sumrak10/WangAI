@@ -1,5 +1,7 @@
 import datetime
+import logging
 import time
+from typing import Sequence
 
 import pandas as pd
 from pytrends.request import TrendReq
@@ -16,16 +18,17 @@ class GoogleTrendsDataSource(AbstractDataSource):
         from_date: datetime.date,
         to_date: datetime.date,
         *,
-        keywords: list[str],
+        keywords: Sequence[str] = ('btc',),
     ) -> pd.DataFrame:
-        data = cls._read_from_csv(cls._build_file_name(from_date, to_date))
+        cache_key = cls._build_cache_key(from_date, to_date, keywords)
+        data = cls._read_from_csv(cache_key)
         if data is None:
             data = cls._load(
                 from_date=from_date,
                 to_date=to_date,
                 keywords=keywords,
             )
-            cls._save_to_csv(data, name=cls._build_file_name(from_date, to_date), index=False)
+            cls._save_to_csv(data, name=cache_key, index=False)
         cls.__check_dead_keywords(data)
         return data
 
@@ -34,11 +37,12 @@ class GoogleTrendsDataSource(AbstractDataSource):
             cls,
             from_date: datetime.date,
             to_date: datetime.date,
-            keywords: list[str],
+            keywords: Sequence[str],
     ) -> pd.DataFrame:
+        logging.info("Загружаем данные из API")
         all_data = []
         pytrends = TrendReq()
-        sleep_time = 1
+        sleep_time = 15
 
         # Разбиваем keywords по 5 штук
         def chunks(lst, n):
@@ -48,7 +52,7 @@ class GoogleTrendsDataSource(AbstractDataSource):
         keyword_batches = list(chunks(keywords, 5))
 
         for batch in keyword_batches:
-            print(f"Собираем тренды для: {batch}")
+            logging.info(f"Собираем тренды для: {batch}")
             timeframe = f"{from_date.strftime('%Y-%m-%d')} {to_date.strftime('%Y-%m-%d')}"
 
             pytrends.build_payload(batch, timeframe=timeframe)
@@ -58,6 +62,7 @@ class GoogleTrendsDataSource(AbstractDataSource):
 
             all_data.append(trends_batch)
 
+            logging.info(f"Ожидание времени по избежание 429: {sleep_time}")
             time.sleep(sleep_time)
 
         # Склеиваем все батчи по колонкам (по дате)
@@ -85,11 +90,11 @@ class GoogleTrendsDataSource(AbstractDataSource):
                 dead_keywords.append(column)
 
         if dead_keywords:
-            print("\n⚠️ Слова без интереса за всё время (всё 0):")
+            logging.info("⚠️ Слова без интереса за всё время (всё 0):")
             for word in dead_keywords:
-                print(f"- {word}")
+                logging.info(f"- {word}")
         else:
-            print("\n✅ Все слова имеют хотя бы какие-то данные.")
+            logging.info("✅ Все слова имеют хотя бы какие-то данные.")
 
 
 if __name__ == '__main__':

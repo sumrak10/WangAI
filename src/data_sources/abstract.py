@@ -13,6 +13,7 @@ class AbstractDataSource:
         cls,
         from_date: datetime.date,
         to_date: datetime.date,
+        **kwargs
     ) -> pd.DataFrame:
         raise NotImplementedError
 
@@ -38,7 +39,7 @@ class AbstractDataSource:
         return data
 
     @classmethod
-    def _build_file_name(
+    def _build_cache_key(
         cls,
         from_date: datetime.date,
         to_date: datetime.date,

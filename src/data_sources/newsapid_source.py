@@ -1,4 +1,5 @@
 import datetime
+import logging
 import time
 
 import pandas as pd
@@ -17,14 +18,16 @@ class NewsAPIDataSource(AbstractDataSource):
         cls,
         from_date: datetime.date,
         to_date: datetime.date,
+        **kwargs
     ) -> pd.DataFrame:
-        data = cls._read_from_csv(cls._build_file_name(from_date, to_date))
+        cache_key = cls._build_cache_key(from_date, to_date)
+        data = cls._read_from_csv(cache_key)
         if data is None:
             data = cls._load(
                 from_date=from_date,
                 to_date=to_date,
             )
-            cls._save_to_csv(data, name=cls._build_file_name(from_date, to_date), index=False)
+            cls._save_to_csv(data, name=cache_key, index=False)
         return data
 
     @classmethod
@@ -33,6 +36,7 @@ class NewsAPIDataSource(AbstractDataSource):
         from_date: datetime.date,
         to_date: datetime.date,
     ) -> pd.DataFrame:
+        logging.info("Загружаем данные из API")
         client = NewsApiClient(news_api_settings.API_KEY)
         query = "Bitcoin"
 
