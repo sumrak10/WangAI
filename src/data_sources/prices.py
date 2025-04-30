@@ -22,8 +22,7 @@ class PricesDataSource(AbstractDataSource):
             tickers: Sequence[str] = ('BTC-USD',)
     ) -> pd.DataFrame:
         cache_key = cls._build_cache_key(from_date, to_date, interval, tickers)
-        # data = cls._read_from_csv(cache_key)
-        data = None
+        data = cls._read_from_csv(cache_key)
         if data is None:
             data = cls._load(
                 from_date=from_date,
@@ -44,49 +43,47 @@ class PricesDataSource(AbstractDataSource):
     ) -> pd.DataFrame:
         logging.info("Загружаем данные из API с разбивкой на части")
 
-        max_days_per_request = 300  # Лимит Yahoo
-        dataframes = []
+        try:
+            df = yf.download(
+                tickers=list(tickers),
+                start=from_date.strftime("%Y-%m-%d"),
+                end=to_date.strftime("%Y-%m-%d"),
+                interval=interval,
+                group_by='ticker',
+                auto_adjust=False,
+                progress=False,
+                threads=True,
+            )
 
-        start = from_date
-        end = to_date
+            if df.empty:
+                logging.warning(f"Пустой ответ для периода {from_date} - {to_date}")
+            else:
+                df.reset_index(inplace=True)
 
-        current_start = start
-        while current_start < end:
-            current_end = min(current_start + datetime.timedelta(days=max_days_per_request), end)
-            logging.info(f"Загружаем период {current_start} -> {current_end}")
+            time.sleep(2)  # чтобы избежать бана
 
-            try:
-                df = yf.download(
-                    tickers=list(tickers),
-                    start=current_start.strftime("%Y-%m-%d"),
-                    end=current_end.strftime("%Y-%m-%d"),
-                    interval=interval,
-                    group_by='ticker',
-                    auto_adjust=False,
-                    progress=False,
-                    threads=True,
-                )
+        except Exception as e:
+            logging.error(f"Ошибка загрузки {tickers} за {from_date} - {to_date}: {e}")
+            df = pd.DataFrame()
 
-                if df.empty:
-                    logging.warning(f"Пустой ответ для периода {current_start} - {current_end}")
+        return cls.clean_yfinance_columns(df)
+
+    @staticmethod
+    def clean_yfinance_columns(df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Преобразует мультииндекс yfinance в нормальные имена колонок типа 'btc_usd_close'
+        """
+        if isinstance(df.columns, pd.MultiIndex):
+            new_columns = []
+            for ticker, param in df.columns:
+                if ticker == '':
+                    new_columns.append(param.lower())  # индекс типа 'Date'
                 else:
-                    df.reset_index(inplace=True)
-                    dataframes.append(df)
-
-                time.sleep(2)  # чтобы избежать бана
-
-            except Exception as e:
-                logging.error(f"Ошибка загрузки {tickers} за {current_start} - {current_end}: {e}")
-
-            current_start = current_end + datetime.timedelta(days=1)
-
-        if not dataframes:
-            raise ValueError("Не удалось загрузить ни одного блока данных.")
-
-        full_data = pd.concat(dataframes)
-        full_data = full_data.drop_duplicates(subset=['Datetime']).sort_values('Datetime').reset_index(drop=True)
-
-        return full_data
+                    clean_ticker = ticker.lower().replace('-', '_')
+                    clean_param = param.lower().replace(' ', '_')
+                    new_columns.append(f"{clean_ticker}_{clean_param}")
+            df.columns = new_columns
+        return df
 
 
 if __name__ == '__main__':
@@ -96,7 +93,7 @@ if __name__ == '__main__':
     prices_data = PricesDataSource.load(
         from_date=ANALYSIS_START_DATE,
         to_date=ANALYSIS_END_DATE,
-        interval="1h",
+        interval="1d",
         tickers=[
             'BTC-USD',
             'ETH-USD',
