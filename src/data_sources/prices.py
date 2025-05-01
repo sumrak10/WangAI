@@ -21,7 +21,7 @@ class PricesDataSource(AbstractDataSource):
             interval: str = '1h',
             tickers: Sequence[str] = ('BTC-USD',)
     ) -> pd.DataFrame:
-        cache_key = cls._build_cache_key(from_date, to_date, interval, tickers)
+        cache_key = cls._build_cache_key(from_date, to_date, interval, *tickers)
         data = cls._read_from_csv(cache_key)
         if data is None:
             data = cls._load(

@@ -7,6 +7,7 @@ import pandas as pd
 from pytrends.request import TrendReq
 
 from src.data_sources.abstract import AbstractDataSource
+from src.logger import LoggerConfig
 
 
 class GoogleTrendsDataSource(AbstractDataSource):
@@ -20,7 +21,7 @@ class GoogleTrendsDataSource(AbstractDataSource):
         *,
         keywords: Sequence[str] = ('btc',),
     ) -> pd.DataFrame:
-        cache_key = cls._build_cache_key(from_date, to_date, keywords)
+        cache_key = cls._build_cache_key(from_date, to_date, *keywords)
         data = cls._read_from_csv(cache_key)
         if data is None:
             data = cls._load(
@@ -42,7 +43,7 @@ class GoogleTrendsDataSource(AbstractDataSource):
         logging.info("Загружаем данные из API")
         all_data = []
         pytrends = TrendReq()
-        sleep_time = 15
+        sleep_time = 100
 
         # Разбиваем keywords по 5 штук
         def chunks(lst, n):
@@ -98,19 +99,21 @@ class GoogleTrendsDataSource(AbstractDataSource):
 
 
 if __name__ == '__main__':
+    LoggerConfig.setup_logger()
     ANALYSIS_START_DATE = datetime.date.fromisoformat("2014-09-17")
-    ANALYSIS_END_DATE = datetime.date.fromisoformat("2025-04-27")
+    ANALYSIS_END_DATE = datetime.date.fromisoformat("2025-05-01")
 
     google_trends_data = GoogleTrendsDataSource.load(
         from_date=ANALYSIS_START_DATE,
         to_date=ANALYSIS_END_DATE,
         keywords=[
             'bitcoin', 'btc', 'ethereum', 'eth', 'crypto',
-            'buy bitcoin', 'sell bitcoin', 'bitcoin price', 'crypto trading', 'crypto price',
+            'bitcoin price', 'crypto trading', 'crypto price',
             'crypto crash', 'bitcoin crash', 'crypto fear', 'crypto bull run', 'crypto bear market',
             'gold', 'usd', 'usdt', 'usdc',
             'web3', 'nft', 'defi', 'blockchain',
             'binance', 'coinbase', 'crypto.com', 'kraken', 'okx',
-            'bitcoin investment', 'how to buy bitcoin', 'bitcoin price',
+            'bitcoin investment',
+            'war', 'conflict', 'ETF',
         ]
     )

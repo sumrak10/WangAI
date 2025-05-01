@@ -1,4 +1,5 @@
 import datetime
+import hashlib
 import os
 
 import pandas as pd
@@ -28,13 +29,16 @@ class AbstractDataSource:
 
     @classmethod
     def _read_from_csv(cls, name: str, *args, **kwargs) -> pd.DataFrame | None:
+        file_path = f"{cls.__base_dir__}/{cls.__dir_name__}/{name}.csv"
         try:
             data = pd.read_csv(
-                f"{cls.__base_dir__}/{cls.__dir_name__}/{name}.csv",
+                file_path,
                 parse_dates=True,
                 *args, **kwargs
             )
         except FileNotFoundError:
+            data = None
+        except OSError:
             data = None
         return data
 
@@ -46,12 +50,14 @@ class AbstractDataSource:
         *args,
         **kwargs,
     ) -> str:
-        s = f"{from_date.strftime('%Y-%m-%d')}--{to_date.strftime('%Y-%m-%d')}"
+        s = f"{from_date.strftime('%Y-%m-%d')}--{to_date.strftime('%Y-%m-%d')}--"
+        s_ = ''
         if args:
-            args_str = [str(arg) for arg in args]
-            s = f"{s}-{''.join(args_str)}"
+            s_ = f"{s_}--{'-'.join(args)}"
         if kwargs:
-            kwargs_str = [f'{key}_{value}' for key, value in kwargs.items()]
-            s = f"{s}-{''.join(args)}"
-        return s
+            kwargs_str = [f'{key}__{value}' for key, value in kwargs.items()]
+            s_ = f"{s_}--{'-'.join(kwargs_str)}"
+        md5_hash = hashlib.md5(s_.encode('utf-8')).hexdigest()
+        return s+md5_hash
+
 
